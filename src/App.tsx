@@ -61,19 +61,19 @@ export default function App() {
 
   // If the account info, client, or app id change
   // update our app client
-    async function _get_task_notes() {
-      await get_task_notes()
-      .then((todos) => {
-        setTodos(todos)
-
-      })
-    }
+  async function _get_task_notes() {
+    const todos = await get_task_notes()
+    setTodos(todos)
+  }
 
   useEffect(() => {
     // Bad way to track connected status but...
     if (activeAccount === null && appClient.sender !== "") {
       setAppClient(AnonClient(algodClient, appId));
-    } else if (
+      return
+    } 
+
+    if (
       activeAccount && activeAccount.address != appClient.sender
     ) {
       setAppClient(
@@ -114,7 +114,7 @@ export default function App() {
   async function createTask(task_note: string) {
 
     let txn = algosdk.makePaymentTxnWithSuggestedParamsFromObject({
-      from: activeAccount?.address ? activeAccount.address : "",
+      from: activeAccount?.address || "",
       suggestedParams: await algodClient.getTransactionParams().do(),
       to: algosdk.getApplicationAddress(appId),
       amount: BigInt(2000)
@@ -162,10 +162,11 @@ export default function App() {
   
   async function toggleModal() {
     if(modalStatus) {
-      setmodalStatus(false)
-    } else {
-      setmodalStatus(true)
+      return setmodalStatus(false)
     }
+
+    setmodalStatus(true)
+  
   }
 
   const modal = 
@@ -179,7 +180,7 @@ export default function App() {
               </div>
 
               <button type="button" onClick={() => {
-                modalStatus == false? setmodalStatus(true) : setmodalStatus(false)
+                setmodalStatus(!modalStatus)
               }} className="w-full text-white bg-green-700 hover:bg-blue-800 focus:ring-4 focus:outline-none focus:ring-blue-300 font-medium rounded-lg text-sm px-5 py-2.5 text-center dark:bg-blue-600 dark:hover:bg-blue-700 dark:focus:ring-blue-800" data-modal-hide="authentication-modal">
                 Close
               </button>
@@ -249,7 +250,7 @@ export default function App() {
         <span className="ml-5">
           <button class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-white text-sm font-medium rounded-md"
           onClick={() => {
-            editModalStatus == false? setEditModalStatus(true) : setEditModalStatus(false);
+           setEditModalStatus(!editModalStatus)
             setCurrentId(el._id as unknown as bigint)
             }}>
           <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
