@@ -18,13 +18,22 @@ class ApplicationCalls:
             acct_client: ApplicationClient,
             amount: int = 2_000
     ) -> TransactionWithSigner:
+        # Check current balance before sending payment
+        account_info = acct_client.account_info()
+        balance = account_info.get('amount', 0)
+        if balance < amount:
+            raise ValueError(
+                f"Insufficient balance ({balance} microAlgos) for payment of {amount} microAlgos")
+
+        # Create and sign payment transaction
+        txn = PaymentTxn(
+            sender=acct_client.sender,
+            sp=acct_client.get_suggested_params(),
+            receiver=acct_client.app_addr,
+            amt=amount,
+        )
         return TransactionWithSigner(
-            txn=PaymentTxn(
-                sender=acct_client.sender,
-                sp=acct_client.get_suggested_params(),
-                receiver=acct_client.app_addr,
-                amt=amount,
-            ),
+            txn=txn,
             signer=acct_client.signer
         )
 
@@ -35,11 +44,21 @@ class ApplicationCalls:
             app_id: int,
             method_name: Method,
             box_name: bytes,
-            **params
+            arg1: str = None,
+            arg2: int = None,
+            arg3: bytes = None,
     ) -> ABIResult:
+        # Define expected arguments explicitly to prevent invalid method calls
+        if method_name == Method(name='create_task', args=[('title', 'str'), ('description', 'str'), ('deadline', 'bytes')]):
+            args = {'title': arg1, 'description': arg2, 'deadline': arg3}
+        elif method_name == Method(name='complete_task', args=[('task_id', 'int')]):
+            args = {'task_id': arg1}
+        else:
+            raise ValueError(f"Invalid method: {method_name}")
+
         result = acct_client.call(
             method=method_name,
-            **params,
+            **args,
             boxes=[(app_id, box_name)]
         )
         return result
@@ -55,11 +74,7 @@ def print_boxes(app_client: ApplicationClient) -> None:
 
 
 def demo() -> None:
-    creator_acct: SandboxAccount
-    acct1: SandboxAccount
-    acct2: SandboxAccount
-
-    creator_acct, acct1, acct2 = sandbox.get_accounts()
+    creator_acct, acct1, _ = sandbox.get_accounts()
 
     app_client = ApplicationClient(
         client=sandbox.get_algod_client(),
@@ -71,11 +86,11 @@ def demo() -> None:
     print(f"App created with ID: {app_id}, " +
           f"and address: {app_addr}, " +
           f"in transaction: {tx_id}")
+
     app_client.fund(consts.algo * 2)
 
     acct1_client = app_client.prepare(signer=acct1.signer)
 
-    # Acct1 app calls
     # Create Task
     task_id = 0
 
@@ -87,7 +102,6 @@ def demo() -> None:
         _txn=ApplicationCalls.make_payment_to_escrow(acct_client=acct1_client),
         _task_note="Hello World!"
     )
-    print_boxes(acct1_client)
 
     # Get task
     result = ApplicationCalls.make_method_call(
@@ -110,7 +124,6 @@ def demo() -> None:
         _txn=ApplicationCalls.make_payment_to_escrow(acct_client=acct1_client),
         _task_note="Hi World!"
     )
-    print_boxes(acct1_client)
 
     # Get task
     result = ApplicationCalls.make_method_call(
@@ -132,6 +145,7 @@ def demo() -> None:
         box_name=task_id.to_bytes(8, "big"),
         _task_id=task_id
     )
+
     print_boxes(acct1_client)
 
 
