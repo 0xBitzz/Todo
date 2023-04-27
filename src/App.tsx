@@ -246,7 +246,9 @@ export default function App() {
       { !!todos && todos.map((el, index) => (
         <div className="flex justify-between mb-5">
         <div><span className="mr-5">{index + 1}</span><span>{el.note}</span></div>
-        <span className="ml-5">
+        {
+          activeAccount?.address === el.owner && (
+            <span className="ml-5">
           <button class="inline-flex items-center px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-800 text-white text-sm font-medium rounded-md"
           onClick={() => {
             editModalStatus == false? setEditModalStatus(true) : setEditModalStatus(false);
@@ -258,6 +260,8 @@ export default function App() {
           Edit Todo
           </button>
         </span>
+          )
+        }
         </div>
       ))}
       </div>
