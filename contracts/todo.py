@@ -33,6 +33,8 @@ class State:
         default=Int(0),
         descr="Task tracker"
     )
+    # This will be used to in the create task function to ensure no overflow problem
+    max_task_id = 2**64 - 1 
 
     def __init__(self):
         self.tasks = BoxMapping(abi.Uint64, Task)
@@ -61,6 +63,11 @@ def create_task(
         (time := abi.Uint64()).set(Global.latest_timestamp()),
 
         (task := Task()).set(owner, task_note, is_completed, time),
+        # Ensure that the task id is not greater than the maximum allowable value
+        Assert(
+            todo_app.state.task_id.get() < State.max_task_id,
+            "Task ID exceeds maximum value of uint64"
+        ),
         todo_app.state.tasks[Itob(todo_app.state.task_id)].set(task),
 
         todo_app.state.task_id.increment()
@@ -73,6 +80,13 @@ def update_task(
         _new_task_note: abi.String
 ) -> Expr:
     return Seq(
+        # Check to ensure tat task exist before trying to update
+        # this will prevent errors
+        Assert(
+            todo_app.state.tasks.get(_task_id) != None,
+            "Task does not exist"
+        ),
+
         (task := Task()).decode(todo_app.state.tasks[_task_id].get()),
         (owner := abi.Address()).set(task.owner),
         Assert(
